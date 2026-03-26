@@ -96,7 +96,10 @@ def generate_labels(volume_json_path, output_path, growth_threshold=0.2):
 
 # RUN
 if __name__ == "__main__":
-    volume_json_path = "/data/json/volumes.json"
+    # Set paths relative to project root
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    output_path = os.path.join(base_dir, "data", "json")
+    volume_json_path = os.path.join(output_path, "volumes.json")
     full_labels = generate_labels(volume_json_path, output_path, growth_threshold=0.2)
 
     print("Done. Patients processed:", len(full_labels))
