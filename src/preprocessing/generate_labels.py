@@ -96,7 +96,7 @@ def generate_labels(volume_json_path, output_path, growth_threshold=0.2):
 
 # RUN
 if __name__ == "__main__":
-    volume_json_path = "/content/drive/MyDrive/MAIS202_ProjectTest/output/volumes.json"
+    volume_json_path = "/data/json/volumes.json"
     full_labels = generate_labels(volume_json_path, output_path, growth_threshold=0.2)
 
     print("Done. Patients processed:", len(full_labels))

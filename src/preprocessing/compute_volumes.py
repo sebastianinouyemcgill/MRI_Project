@@ -93,8 +93,8 @@ def compute_patient_volumes(data_path, output_path):
   return volumes
 
 if __name__ == "__main__":
-  data_path = "/content/drive/MyDrive/MAIS202_ProjectTest/data/processed"
-  output_path = "/content/drive/MyDrive/MAIS202_ProjectTest/output"
+  data_path = "/data/processed"
+  output_path = "/data/json"
   
   JSON_output = compute_patient_volumes(data_path, output_path)
   print("Done. Patients processed:", len(JSON_output))
