@@ -1,16 +1,18 @@
+import sys
 import os
-import torch
 import json
 from datetime import datetime
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.config import DATA_ROOT, JSON_ROOT, GROWTH_THRESHOLD
+
 
 def compute_growth(v1, v2):
-  """
-  Relative tumour growth.
-  """
-  if v1 == 0:
-    return 0
-  growth = (v2 - v1) / v1
-  return growth
+    '''
+    relative tumour growth
+    '''
+    if v1 == 0:
+        return float('inf') if v2 > 0 else 0
+    return (v2 - v1) / v1
 
 
 def compute_time_delta_days(date1, date2):
@@ -23,13 +25,13 @@ def compute_time_delta_days(date1, date2):
   return diff
 
 
-def generate_labels(volume_json_path, output_path, growth_threshold=0.2):
+def generate_labels(volume_json_path=JSON_ROOT, output_path=JSON_ROOT, growth_threshold=GROWTH_THRESHOLD):
   """
   Generate progression labels from computed tumor volumes.
   Output format:
   {
     "patient_id": {
-      "t1->t2": {
+      "t1_t2": {
         "growth": float,
         "label": int,
         "delta_days": int
@@ -71,19 +73,22 @@ def generate_labels(volume_json_path, output_path, growth_threshold=0.2):
       label = 1 if growth > growth_threshold else 0
       delta_days = compute_time_delta_days(ti, tf)
 
-      key = f"{ti}->{tf}"
+      key = f"t{i+1}_t{i+2}"
 
       labels[patient_id][key] = {
-        "volume_ti": vi,
-        "volume_tf": vf,
-        "growth": growth,
-        "label": label,
-        "days_elapsed": delta_days
-      }
+         "date_ti": ti,
+         "date_tf": tf,
+         "volume_ti": vi,
+         "volume_tf": vf,
+         "growth": growth,
+         "label": label,
+         "days_elapsed": delta_days
+         }
 
       print(f"{key}: growth={growth:.3f}, label={label}, Δt={delta_days} days")
 
   # Save output
+  os.makedirs(output_path, exist_ok=True)
   output_file = os.path.join(output_path, "labels.json")
 
   with open(output_file, "w") as f:
@@ -96,11 +101,9 @@ def generate_labels(volume_json_path, output_path, growth_threshold=0.2):
 
 # RUN
 if __name__ == "__main__":
-    # Set paths relative to project root
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    output_path = os.path.join(base_dir, "data", "json")
-    volume_json_path = os.path.join(output_path, "volumes.json")
-    full_labels = generate_labels(volume_json_path, output_path, growth_threshold=0.2)
+    volume_json_path = os.path.join(JSON_ROOT, "volumes.json")  
+
+    full_labels = generate_labels(volume_json_path, output_path=JSON_ROOT, growth_threshold=GROWTH_THRESHOLD)
 
     print("Done. Patients processed:", len(full_labels))
     print(f"JSON: {full_labels}")

@@ -1,6 +1,9 @@
 import os
+import sys
 import json
 import torch
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.config import DATA_ROOT, JSON_ROOT
 
 def compute_tumor_volume(tensor, threshold_sigma): # Still don't know how to define tumour threshold for intensities
   """
@@ -24,7 +27,7 @@ def compute_tumor_volume(tensor, threshold_sigma): # Still don't know how to def
   tumor_volume = float(tumor_voxels)
   return tumor_volume
 
-def compute_patient_volumes(data_path, output_path):
+def compute_patient_volumes(data_path=DATA_ROOT, output_path=JSON_ROOT, threshold_sigma=2.0):
   """
   Loop through all patients and compute tumor volumes.
   """
@@ -56,24 +59,24 @@ def compute_patient_volumes(data_path, output_path):
         continue
 
       # For multiple .pt files
+      tumor_volume = 0.0
       for pt_file in pt_files:
         file_path = os.path.join(scan_path, pt_file)
+        data = torch.load(file_path)
 
-      data = torch.load(file_path)
-
-      # Handle dict case
-      if isinstance(data, dict):
-        tensor = data.get("image", None)
-        if tensor is None:
+        # Handle dict case
+        if isinstance(data, dict):
+          tensor = data.get("image", None)
+          if tensor is None:
             print(f"Skipping {file_path}, no 'image' key")
             continue
-      else:
-        tensor = data
+        else:
+          tensor = data
 
-      # Debug
-      print(f"{patient_id} {scan_date}: min={tensor.min()} max={tensor.max()}")
+        # Debug
+        print(f"{patient_id} {scan_date}: min={tensor.min()} max={tensor.max()}")
 
-      tumor_volume = compute_tumor_volume(tensor, 2.0)
+        tumor_volume = compute_tumor_volume(tensor, threshold_sigma)
 
       # Use scan_date as timepoint
       volumes[patient_id][scan_date] = tumor_volume
@@ -84,6 +87,8 @@ def compute_patient_volumes(data_path, output_path):
       print(f"Removing {patient_id} (only {num_timepoints} valid scan)")
       del volumes[patient_id]
 
+  # Save output
+  os.makedirs(output_path, exist_ok=True)
   output_file = os.path.join(output_path, "volumes.json")
 
   with open(output_file, "w") as f:
@@ -93,9 +98,8 @@ def compute_patient_volumes(data_path, output_path):
   return volumes
 
 if __name__ == "__main__":
-  data_path = "/data/processed"
-  output_path = "/data/json"
-  
-  JSON_output = compute_patient_volumes(data_path, output_path)
+  threshold_sigma = 2.0
+
+  JSON_output = compute_patient_volumes(data_path=DATA_ROOT, output_path=JSON_ROOT, threshold_sigma=threshold_sigma)
   print("Done. Patients processed:", len(JSON_output))
   print(f"JSON: {JSON_output}")
