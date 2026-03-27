@@ -1,32 +1,23 @@
-# DATA
-IMG_SIZE = (128, 128, 128)   # D, H, W
-IN_CHANNELS = 1
+# config.py
+import os
 
-SEQ_LEN = 2                  # [t1, t2] → predict t3
-PRED_HORIZON = 1             # predicting next timepoint
+# Paths
+DATA_ROOT = "../../data/processed"       # for preprocessed tensors
+SPLIT_ROOT = "../../splits"             # for train/test/val txts
+JSON_ROOT = "../../data/json"           # for volumes.json / labels.json
 
-# MODEL
-FEATURE_DIM = 128            # CNN output size
-HIDDEN_DIM = 64              # LSTM hidden size
-NUM_LSTM_LAYERS = 1
-DROPOUT = 0.1
+# Sliding window / sequences
+SEQ_LEN = 2                              # number of timepoints per sequence
 
-# TRAINING
-BATCH_SIZE = 4               # adjust based on GPU
-EPOCHS = 50
-LEARNING_RATE = 1e-4
+# Labels
+GROWTH_THRESHOLD = 0.2
 
-# LOSS / TASK
-TASK_TYPE = "classification"   # or "regression"
-NUM_CLASSES = 1                # binary classification (logit output)
+# Randomness
+RANDOM_SEED = 42
 
-# DEVICE
-DEVICE = "cuda"  # or "cpu"
+# CNN/LSTM
+BATCH_SIZE = 4
+FEATURE_DIM = 256  # placeholder for CNN output size
 
-# PATHS
-DATA_DIR = "data/"
-SPLIT_DIR = "splits/"
-
-# DEBUG / TESTING
-OVERFIT_BATCH = False
-PRINT_SHAPES = False
+# Misc
+MODALITY = "POST"  # only using POST for now
