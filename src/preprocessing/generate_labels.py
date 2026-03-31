@@ -3,7 +3,7 @@ import os
 import json
 from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.config import DATA_ROOT, JSON_ROOT, GROWTH_THRESHOLD
+from utils.config import JSON_ROOT, GROWTH_THRESHOLD
 
 
 def compute_growth(v1, v2):
@@ -106,4 +106,4 @@ if __name__ == "__main__":
     full_labels = generate_labels(volume_json_path, output_path=JSON_ROOT, growth_threshold=GROWTH_THRESHOLD)
 
     print("Done. Patients processed:", len(full_labels))
-    print(f"JSON: {full_labels}")
+    #print(f"JSON: {full_labels}")

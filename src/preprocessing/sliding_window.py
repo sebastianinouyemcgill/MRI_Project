@@ -12,7 +12,7 @@ def load_patient_tensors(patient_path):
     Returns: list of tensors, one per timepoint (stacked if multiple modalities)
     """
     patient_id = os.path.basename(patient_path)
-    print(f"\nLoading tensors for patient: {patient_id}")
+    # print(f"\nLoading tensors for patient: {patient_id}")
 
     timepoints = sorted(os.listdir(patient_path))
     tensors = []
@@ -25,7 +25,7 @@ def load_patient_tensors(patient_path):
         # Only load POST .pt files
         post_files = [f for f in os.listdir(tp_path) if f.endswith(".pt") and "POST" in f.upper()]
         if len(post_files) == 0:
-            print(f"  Skipping timepoint {tp} (no POST .pt files)")
+            # print(f"  Skipping timepoint {tp} (no POST .pt files)")
             continue
 
         modality_tensors = []
@@ -36,16 +36,16 @@ def load_patient_tensors(patient_path):
                 if isinstance(data, dict):
                     tensor = data.get("image", None)
                     if tensor is None:
-                        print(f"    Skipping {f} (no 'image' key)")
+                        # print(f"    Skipping {f} (no 'image' key)")
                         continue
                 else:
                     tensor = data
                 modality_tensors.append(tensor)
             except Exception as e:
-                print(f"    Failed to load {f}: {e}")
-
+                # print(f"    Failed to load {f}: {e}")
+                pass
         if len(modality_tensors) == 0:
-            print(f"  No valid POST tensors found in {tp}")
+            # print(f"  No valid POST tensors found in {tp}")
             continue
 
         try:
@@ -54,75 +54,52 @@ def load_patient_tensors(patient_path):
             else:
                 tp_tensor = modality_tensors[0]
             tensors.append(tp_tensor)
-            print(f"  Loaded {tp}: {len(modality_tensors)} POST modality(ies), shape {tp_tensor.shape}")
+            # print(f"  Loaded {tp}: {len(modality_tensors)} POST modality(ies), shape {tp_tensor.shape}")
         except Exception as e:
-            print(f"  Failed to stack tensors at {tp}: {e}")
+            # print(f"  Failed to stack tensors at {tp}: {e}")
+            pass
 
-    print(f"Finished patient {patient_id}, total timepoints loaded: {len(tensors)}")
+    # print(f"Finished patient {patient_id}, total timepoints loaded: {len(tensors)}")
     return tensors
 
 
-def create_sliding_windows(label_json, seq_len=SEQ_LEN, modality=MODALITY):
+def create_sliding_windows(label_json, seq_len, modality=MODALITY):
     """
-    Args:
-        label_json: dict from labels.json
-        seq_len: int
-        modality: int or str (used for future modality handling)
-
     Returns:
-        X: list of torch tensors [sequence_len x modality x H x W x D]
-        y: list of labels (int)
+        X: list of (patient_id, [date strings])
+        y: list of labels
     """
+
     X = []
     y = []
 
-    total_patients = 0
-    total_sequences = 0
+    for pid, transitions in label_json.items():
+        # Sort transitions by start date
+        sorted_items = sorted(
+            transitions.items(),
+            key=lambda x: x[1]["date_ti"]
+        )
 
-    for patient_id in os.listdir(DATA_ROOT):
-        patient_path = os.path.join(DATA_ROOT, patient_id)
-        if not os.path.isdir(patient_path):
-            continue
-        if patient_id not in label_json:
-            print(f"Skipping {patient_id} (no labels)")
-            continue
+        # Build ordered list of dates
+        dates = []
+        for key, info in sorted_items:
+            dates.append(info["date_ti"])
+        # add final date
+        dates.append(sorted_items[-1][1]["date_tf"])
 
-        timepoint_tensors = load_patient_tensors(patient_path)
-        labels = label_json[patient_id]
-
-        num_scans = len(timepoint_tensors)
-        if num_scans < seq_len + 1:
-            print(f"{patient_id}: not enough scans for seq_len={seq_len}, has {num_scans}")
+        if len(dates) < seq_len + 1:
             continue
 
-        total_patients += 1
-        sequences_for_patient = 0
+        for i in range(len(dates) - seq_len):
+            input_dates = dates[i:i + seq_len]
 
-        for i in range(num_scans - seq_len):
-            seq = timepoint_tensors[i:i+seq_len]
+            # label from NEXT transition
+            transition = sorted_items[i + seq_len - 1][1]
+            label = transition["label"]
 
-            # Corresponding label = next transition
-            label_key = f"t{i+1}_t{i+2}"
-            if label_key not in labels:
-                print(f"{patient_id}: missing label for {label_key}, skipping")
-                continue
+            X.append((pid, input_dates))
+            y.append(label)
 
-            label = labels[label_key]["label"]
-
-            try:
-                seq_tensor = torch.stack(seq)
-                X.append(seq_tensor)
-                y.append(label)
-                sequences_for_patient += 1
-            except Exception as e:
-                print(f"{patient_id}: failed to stack seq {i}-{i+seq_len}: {e}")
-
-        if sequences_for_patient > 0:
-            print(f"{patient_id}: {sequences_for_patient} sequences generated")
-        total_sequences += sequences_for_patient
-
-    print(f"\nTotal patients with sequences: {total_patients}")
-    print(f"Total sequences generated: {total_sequences}")
     return X, y
 
 

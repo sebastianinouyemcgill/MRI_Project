@@ -2,104 +2,84 @@ import os
 import sys
 import json
 import torch
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.config import DATA_ROOT, JSON_ROOT
 
-def compute_tumor_volume(tensor, threshold_sigma): # Still don't know how to define tumour threshold for intensities
-  """
-  Compute tumor volume as intensity above threshold. Assume the tumor is 'brighter'
-  than the average brain tissue (common in T1-weighted post-contrast).
-  Use Standard Deviations (Sigma) above the mean to find 'hotspots'.
-  """
-  # 1. Ignore the black background (0s) to get brain-only stats
-  brain_voxels = tensor[tensor > 0]
-  if brain_voxels.numel() == 0:
-    return 0.0
+def compute_tumor_volume(tensor, threshold_sigma): 
+    brain_voxels = tensor[tensor > 0]
+    if brain_voxels.numel() == 0:
+        return 0.0
 
-  mean_val = brain_voxels.mean()
-  std_val = brain_voxels.std()
+    mean_val = brain_voxels.mean()
+    std_val = brain_voxels.std()
+    threshold = mean_val + (threshold_sigma * std_val)
 
-  # 2. Define threshold as Mean + N * StdDev
-  # Typically, tumor tissue is significantly brighter than healthy gray matter
-  threshold = mean_val + (threshold_sigma * std_val)
+    tumor_voxels = (tensor > threshold).sum().item()
+    return float(tumor_voxels)
 
-  tumor_voxels = (tensor > threshold).sum().item()
-  tumor_volume = float(tumor_voxels)
-  return tumor_volume
+def process_pt_file(file_path, threshold_sigma):
+    """Helper for parallel processing of a single .pt file."""
+    try:
+        data = torch.load(file_path, weights_only=False)
+    except Exception as e:
+        return 0.0
+    
+    if isinstance(data, dict):
+        tensor = data.get("image", None)
+        if tensor is None:
+            return 0.0
+    else:
+        tensor = data
+    return compute_tumor_volume(tensor, threshold_sigma)
 
-def compute_patient_volumes(data_path=DATA_ROOT, output_path=JSON_ROOT, threshold_sigma=2.0):
-  """
-  Loop through all patients and compute tumor volumes.
-  """
-  volumes = {}
+def compute_patient_volumes(data_path=DATA_ROOT, output_path=JSON_ROOT, threshold_sigma=2.0, max_workers=4):
+    volumes = {}
 
-  # Loop over patient IDs
-  for patient_id in os.listdir(data_path):
-    patient_path = os.path.join(data_path, patient_id)
+    patients = [p for p in os.listdir(data_path) if os.path.isdir(os.path.join(data_path, p))]
+    for patient_id in tqdm(patients, desc="Patients"):
+        patient_path = os.path.join(data_path, patient_id)
+        volumes[patient_id] = {}
+        scans = sorted(os.listdir(patient_path))
 
-    if not os.path.isdir(patient_path):
-      continue
+        for scan_date in tqdm(scans, desc=f"Scans for {patient_id}", leave=False):
+            scan_path = os.path.join(patient_path, scan_date)
+            if not os.path.isdir(scan_path):
+                continue
 
-    volumes[patient_id] = {}
+            pt_files = [f for f in os.listdir(scan_path) if f.endswith(".pt") and "POST" in f.upper()]
+            if not pt_files:
+                continue
 
-    scans = sorted(os.listdir(patient_path))
+            tumor_volume = 0.0
+            # Parallel processing per .pt file
+            futures = []
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                for pt_file in pt_files:
+                    file_path = os.path.join(scan_path, pt_file)
+                    futures.append(executor.submit(process_pt_file, file_path, threshold_sigma))
+                for f in as_completed(futures):
+                    tumor_volume += f.result()
 
-    # Loop over scan date in each patient
-    for scan_date in scans:
-      scan_path = os.path.join(patient_path, scan_date)
+            volumes[patient_id][scan_date] = tumor_volume
 
-      if not os.path.isdir(scan_path):
-        continue
+        num_timepoints = len(volumes[patient_id])
+        if num_timepoints <= 1:
+            # Remove patients with <=1 valid scan
+            del volumes[patient_id]
 
-      # Find .pt files inside each scan date folder
-      pt_files = [f for f in os.listdir(scan_path) if f.endswith(".pt") and "POST" in f.upper()]
+    os.makedirs(output_path, exist_ok=True)
+    output_file = os.path.join(output_path, "volumes.json")
+    with open(output_file, "w") as f:
+        json.dump(volumes, f, indent=4)
 
-      if len(pt_files) == 0:
-        print(f"No POST .pt files in {scan_path}")
-        continue
-
-      # For multiple .pt files
-      tumor_volume = 0.0
-      for pt_file in pt_files:
-        file_path = os.path.join(scan_path, pt_file)
-        data = torch.load(file_path)
-
-        # Handle dict case
-        if isinstance(data, dict):
-          tensor = data.get("image", None)
-          if tensor is None:
-            print(f"Skipping {file_path}, no 'image' key")
-            continue
-        else:
-          tensor = data
-
-        # Debug
-        print(f"{patient_id} {scan_date}: min={tensor.min()} max={tensor.max()}")
-
-        tumor_volume = compute_tumor_volume(tensor, threshold_sigma)
-
-      # Use scan_date as timepoint
-      volumes[patient_id][scan_date] = tumor_volume
-
-    num_timepoints = len(volumes[patient_id])
-
-    if num_timepoints <= 1:
-      print(f"Removing {patient_id} (only {num_timepoints} valid scan)")
-      del volumes[patient_id]
-
-  # Save output
-  os.makedirs(output_path, exist_ok=True)
-  output_file = os.path.join(output_path, "volumes.json")
-
-  with open(output_file, "w") as f:
-    json.dump(volumes, f, indent=4)
-
-  print(f"Saved volumes to {output_file}")
-  return volumes
+    print(f"Saved volumes to {output_file}")
+    return volumes
 
 if __name__ == "__main__":
-  threshold_sigma = 2.0
-
-  JSON_output = compute_patient_volumes(data_path=DATA_ROOT, output_path=JSON_ROOT, threshold_sigma=threshold_sigma)
-  print("Done. Patients processed:", len(JSON_output))
-  print(f"JSON: {JSON_output}")
+    threshold_sigma = 2.0
+    JSON_output = compute_patient_volumes(data_path=DATA_ROOT, output_path=JSON_ROOT,
+                                          threshold_sigma=threshold_sigma, max_workers=4)
+    print("Done. Patients processed:", len(JSON_output))
