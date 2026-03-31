@@ -19,3 +19,8 @@ Thumbs.db
 
 # === Jupyter notebook checkpoints ===
 .ipynb_checkpoints/
+
+# === Data files ===
+data/
+*.pt
+*.npy
