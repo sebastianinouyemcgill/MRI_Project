@@ -87,8 +87,12 @@ if __name__ == "__main__":
 
   results = {}
 
+  # Loop through model checkpoints from training
   for ckpt_name in ckpts:
+    print(f"\nEvaluating {ckpt_name}...")
+    
     model = combined_model()
+    model.to(device)
     model_path = os.path.join(CHECKPOINT_ROOT, ckpt_name)
     checkpoint = torch.load(model_path, map_location=device)
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -97,5 +101,5 @@ if __name__ == "__main__":
     metrics = evaluate(model, dataloader, device)
 
     print(f"Epoch {epoch_num}:")
-      for k, v in metrics.items():
+    for k, v in metrics.items():
       print(f"{k}: {v:.4f}")
