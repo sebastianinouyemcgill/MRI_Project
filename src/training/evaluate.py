@@ -2,7 +2,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils.config import SPLIT_ROOT
+from utils.config import SPLIT_ROOT, CHECKPOINT_ROOT
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
 
@@ -77,16 +77,25 @@ if __name__ == "__main__":
 
   print(f"Loaded {len(val_patient_ids)} validation patients")
 
-  dataset = MRIDataset(Dataset = val_patient_ids)
+  dataset = MRIDataset(Dataset=val_patient_ids)
   dataloader = DataLoader(dataset, batch_size=2, shuffle=False)
 
-  model = combined_model()
-  model.load_state_dict(torch.load("model.pth"))
-  model.to(device)
+  ckpts = [f for f in os.listdir(CHECKPOINT_ROOT)
+         if f.startswith("combined_model_epoch") and f.endswith(".pt")]
+  # Sort by epoch number
+  ckpts = sorted(ckpts, key=lambda x: int(x.split("epoch")[1].split(".pt")[0]))
 
-  # Run evaluation
-  metrics = evaluate(model, dataloader, device)
+  results = {}
 
-  print("\nEvaluation Results:")
-  for k, v in metrics.items():
-    print(f"{k}: {v:.4f}")
+  for ckpt_name in ckpts:
+    model = combined_model()
+    model_path = os.path.join(CHECKPOINT_ROOT, ckpt_name)
+    checkpoint = torch.load(model_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+
+    # Run evaluation
+    metrics = evaluate(model, dataloader, device)
+
+    print(f"Epoch {epoch_num}:")
+      for k, v in metrics.items():
+      print(f"{k}: {v:.4f}")
