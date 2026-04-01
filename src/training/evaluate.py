@@ -11,7 +11,6 @@ def load_patient_ids(split_file):
     patient_ids = [line.strip() for line in f.readlines()]
   return patient_ids
 
-
 def compute_metrics(preds, targets):
   """
   preds, targets: torch tensors (N,)
@@ -35,7 +34,6 @@ def compute_metrics(preds, targets):
     "recall": recall,
     "f1": f1
   }
-
 
 def evaluate(model, dataloader, device):
   """
