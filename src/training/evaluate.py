@@ -99,6 +99,8 @@ if __name__ == "__main__":
 
     # Run evaluation
     metrics = evaluate(model, dataloader, device)
+    epoch_num = int(ckpt_name.split("epoch")[1].split(".pt")[0])
+    results[epoch_num] = metrics
 
     print(f"Epoch {epoch_num}:")
     for k, v in metrics.items():
