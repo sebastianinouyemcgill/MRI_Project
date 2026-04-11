@@ -1,11 +1,13 @@
 # config.py
 import os
 
+LOCAL_ROOT    = '/content/MRI_Project'
+
 # Paths
-DATA_ROOT =  "../../data/processed"  # "/Volumes/SSD 2/Projects/MRI Project/Processed Data"
-SPLIT_ROOT = "../../splits"             # for train/test/val txts
-JSON_ROOT = "../../data/json"           # for volumes.json / labels.json
-CHECKPOINT_ROOT = "../../checkpoint/minitest2"   # for saving model checkpoints
+DATA_ROOT =  os.path.join(LOCAL_ROOT, 'data/processed') # "../../data/processed"  # "/Volumes/SSD 2/Projects/MRI Project/Processed Data"
+SPLIT_ROOT = os.path.join(LOCAL_ROOT, 'splits') # "../../splits/mini"             # for train/test/val txts
+JSON_ROOT = os.path.join(LOCAL_ROOT, 'data/json') # "../../data/json/mini"           # for volumes.json / labels.json
+CHECKPOINT_ROOT = os.path.join(LOCAL_ROOT, 'checkpoints') # "../../checkpoint/minitest"   # for saving model checkpoints
 
 # Sliding window / sequences
 SEQ_LEN = 2                              # number of timepoints per sequence
