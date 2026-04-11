@@ -5,7 +5,9 @@ import json
 import torch
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from preprocessing.sliding_window import create_sliding_windows
-from utils.config import DATA_ROOT, JSON_ROOT, SEQ_LEN
+import utils.config as cfg
+import importlib
+importlib.reload(cfg)
 
 
 class MRIDataset(Dataset):
@@ -19,7 +21,7 @@ class MRIDataset(Dataset):
         x_tensor: (T, 1, H, W, D)
         y_label: torch tensor float32, shape (1,)
     """
-    def __init__(self, data_root=DATA_ROOT, label_json_path=JSON_ROOT, seq_len=SEQ_LEN, split=None):
+    def __init__(self, data_root=cfg.DATA_ROOT, label_json_path=cfg.JSON_ROOT, seq_len=cfg.SEQ_LEN, split=None):
         self.data_root = data_root
         self.seq_len = seq_len
 
@@ -83,10 +85,10 @@ class MRIDataset(Dataset):
 # Example usage
 if __name__ == "__main__":
 
-    LABEL_JSON = os.path.join(JSON_ROOT, "labels.json")  # full path to labels.json
+    LABEL_JSON = os.path.join(cfg.JSON_ROOT, "labels.json")
     SEQ_LEN = 2  # you can also move this to config if you want
 
-    dataset = MRIDataset(DATA_ROOT, LABEL_JSON, seq_len=SEQ_LEN)
+    dataset = MRIDataset(cfg.DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN)
     print(f"Dataset length: {len(dataset)}")
 
     # inspect first sequence
