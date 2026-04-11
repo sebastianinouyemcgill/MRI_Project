@@ -42,6 +42,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.config import DATA_ROOT, JSON_ROOT, SEQ_LEN, BATCH_SIZE, CHECKPOINT_ROOT, SPLIT_ROOT, NUM_EPOCHS, LR
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
+from training.losses import BinaryClassificationLoss
+
+criterion = BinaryClassificationLoss(
+    pos_weight=2978 / 1512,   # from your Counter output
+    label_smoothing=0.1        # optional, start with 0.0 if you want baseline first
+)
 
 def train():
     # Device
@@ -64,7 +70,6 @@ def train():
 
     # Model, loss, optimizer
     model = combined_model().to(device)
-    criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
     # Training loop
