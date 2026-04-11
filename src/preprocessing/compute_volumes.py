@@ -82,4 +82,12 @@ if __name__ == "__main__":
     threshold_sigma = 2.0
     JSON_output = compute_patient_volumes(data_path=DATA_ROOT, output_path=JSON_ROOT,
                                           threshold_sigma=threshold_sigma, max_workers=4)
-    print("Done. Patients processed:", len(JSON_output))
+    
+    total = len(JSON_output)
+    print(f"Total patients with valid scans: {total}")
+    print(f"Starting to print patient IDs and  scan dates with computed volumes...")
+    for i, pid in enumerate(JSON_output, 1):
+        if i % 50 == 0 or i == total:
+            print(f"Processed {i}/{total} patients...")
+    
+    print("Done. Patients processed:", total)

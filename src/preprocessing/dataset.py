@@ -48,7 +48,8 @@ class MRIDataset(Dataset):
                 if not os.path.exists(folder):
                     continue
 
-                files = [f for f in os.listdir(folder) if f.endswith(".pt")]
+                files = [f for f in os.listdir(folder) if f.endswith(".pt") and not f.startswith("._")]
+
                 if len(files) == 0:
                     continue
 
@@ -68,7 +69,7 @@ class MRIDataset(Dataset):
     def __getitem__(self, idx):
         paths = self.sequence_paths[idx]
 
-        tensors = [torch.load(p).float() for p in paths]
+        tensors = [torch.load(p, weights_only=False).float() for p in paths]
         x_seq = torch.stack(tensors)
 
         if x_seq.ndim == 4:
