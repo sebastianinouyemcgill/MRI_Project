@@ -24,3 +24,9 @@ Thumbs.db
 data/
 *.pt
 *.npy
+
+# === Checkpoints ===
+data/
+checkpoints/
+splits/
+*.tar.gz
