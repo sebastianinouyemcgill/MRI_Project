@@ -39,12 +39,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.config import DATA_ROOT, JSON_ROOT, SEQ_LEN, BATCH_SIZE, CHECKPOINT_ROOT, SPLIT_ROOT
+from utils.config import DATA_ROOT, JSON_ROOT, SEQ_LEN, BATCH_SIZE, CHECKPOINT_ROOT, SPLIT_ROOT, NUM_EPOCHS, LR
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
-
-NUM_EPOCHS = 10
-LR = 1e-4
 
 def train():
     # Device
@@ -61,8 +58,8 @@ def train():
         dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=os.cpu_count(),   # parallel data loading
-        pin_memory=False
+        num_workers=2,   # parallel data loading
+        pin_memory=True
     )
 
     # Model, loss, optimizer
@@ -120,7 +117,7 @@ def train():
 
         # Save checkpoint
         checkpoint_path = os.path.join(CHECKPOINT_ROOT, f"combined_model_epoch{epoch}.pt")
-        torch.save(model.state_dict(), checkpoint_path)
+        
         # Save checkpoint including optimizer
         torch.save({
             'epoch': epoch,
