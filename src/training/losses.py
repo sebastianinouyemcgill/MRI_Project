@@ -25,6 +25,9 @@ class BinaryClassificationLoss(nn.Module):
         pred:   (B, 1) raw logits from model
         target: (B, 1) float labels (0.0 or 1.0)
         """
+        if self.loss_fn.pos_weight is not None:
+            self.loss_fn.pos_weight = self.loss_fn.pos_weight.to(pred.device)
+
         if self.label_smoothing > 0.0:
             target = target * (1 - self.label_smoothing) + 0.5 * self.label_smoothing
 
