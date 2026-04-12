@@ -47,7 +47,7 @@ from training.losses import BinaryClassificationLoss
 criterion = BinaryClassificationLoss(
     pos_weight=2978 / 1512,   # from your Counter output
     label_smoothing=0.1        # optional, start with 0.0 if you want baseline first
-)
+).to("cuda" if torch.cuda.is_available() else "cpu")
 
 def train():
     # Device
