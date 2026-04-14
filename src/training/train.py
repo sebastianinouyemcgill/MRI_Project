@@ -47,6 +47,7 @@ def train():
         optimizer, mode='max', factor=0.5, patience=3
     )
 
+    """
     # resume from checkpoint
     os.makedirs(cfg.CHECKPOINT_ROOT, exist_ok=True)
     all_ckpts = [f for f in os.listdir(cfg.CHECKPOINT_ROOT)
@@ -63,6 +64,7 @@ def train():
     else:
         start_epoch = 1
         best_f1 = 0.0
+    """
 
     # early stopping
     patience = 5

@@ -90,24 +90,18 @@ class MRIDataset(Dataset):
         return len(self.sequence_paths)
 
     def __getitem__(self, idx):
-        print(f"[GETITEM] idx={idx}")
-
         paths = self.sequence_paths[idx]
 
-        tensors = []
-        for p in paths:
-            print(f"   loading: {p}")
-            t = torch.load(p, weights_only=False).float()
-            tensors.append(t)
-
-        x_seq = torch.stack(tensors)
+        tensors = [torch.load(p, weights_only=False).float() for p in paths]
+        x_seq   = torch.stack(tensors)
 
         if x_seq.ndim == 4:
             x_seq = x_seq.unsqueeze(1)
 
+        # log-normalize days (compresses large gaps)
         days_tensor = torch.log1p(
             torch.tensor(self.days_elapsed[idx], dtype=torch.float32)
-        )
+        )  # (T,)
 
         y_label = torch.tensor(self.y[idx], dtype=torch.float32).unsqueeze(0)
 
