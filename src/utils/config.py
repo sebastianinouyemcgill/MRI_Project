@@ -12,7 +12,7 @@ class Config:
         self.SEQ_LEN = 3
         self.GROWTH_THRESHOLD = 0.2
         self.RANDOM_SEED = 42
-        self.BATCH_SIZE = 2
+        self.BATCH_SIZE = 4
         self.FEATURE_DIM = 256
         self.MODALITY = "POST"
         self.NUM_EPOCHS = 20
