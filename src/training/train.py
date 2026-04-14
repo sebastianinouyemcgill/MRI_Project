@@ -37,77 +37,85 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import shutil
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.config import DATA_ROOT, JSON_ROOT, SEQ_LEN, BATCH_SIZE, CHECKPOINT_ROOT, SPLIT_ROOT, NUM_EPOCHS, LR
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
 from training.losses import BinaryClassificationLoss
+from training.evaluate import evaluate
+
 
 def train():
-    # Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Dataset & DataLoader
-    LABEL_JSON = os.path.join(JSON_ROOT, "labels.json")
-    SPLIT_FILE = os.path.join(SPLIT_ROOT, "train.txt")
+    # ── Datasets ──────────────────────────────────────────
+    LABEL_JSON  = os.path.join(JSON_ROOT, "labels.json")
+    TRAIN_SPLIT = os.path.join(SPLIT_ROOT, "train.txt")
+    VAL_SPLIT   = os.path.join(SPLIT_ROOT, "val.txt")
 
-    dataset = MRIDataset(DATA_ROOT, LABEL_JSON, seq_len=SEQ_LEN, split=SPLIT_FILE)
+    train_dataset = MRIDataset(DATA_ROOT, LABEL_JSON, seq_len=SEQ_LEN, split=TRAIN_SPLIT)
+    val_dataset   = MRIDataset(DATA_ROOT, LABEL_JSON, seq_len=SEQ_LEN, split=VAL_SPLIT)
 
-    dataloader = DataLoader(
-        dataset,
+    train_loader = DataLoader(
+        train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=2,   # parallel data loading
+        num_workers=2,
+        pin_memory=True
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=2,
         pin_memory=True
     )
 
-    # Model, loss, optimizer
-    model = combined_model().to(device)
-
+    # ── Model, loss, optimizer, scheduler ─────────────────
+    model     = combined_model().to(device)
     criterion = BinaryClassificationLoss(
-    pos_weight=2978 / 1512,   # from your Counter output
-    label_smoothing=0.1        # optional, start with 0.0 if you want baseline first
+        pos_weight=2978 / 1512,
+        label_smoothing=0.0   # keep at 0.0 until baseline is stable
     ).to(device)
-
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='max', factor=0.5, patience=3, verbose=True
+    )
 
-    # Training loop
+    # ── Resume from checkpoint ────────────────────────────
     os.makedirs(CHECKPOINT_ROOT, exist_ok=True)
-
-    # Optional: resume from a checkpoint
-    # List all saved checkpoints
-    all_ckpts = [f for f in os.listdir(CHECKPOINT_ROOT) if f.startswith("combined_model_epoch") and f.endswith(".pt")]
+    all_ckpts = [f for f in os.listdir(CHECKPOINT_ROOT)
+                 if f.startswith("combined_model_epoch") and f.endswith(".pt")]
     if all_ckpts:
-        # Pick the one with the highest epoch number
-        last_ckpt = max(all_ckpts, key=lambda x: int(x.split("epoch")[1].split(".pt")[0]))
+        last_ckpt   = max(all_ckpts, key=lambda x: int(x.split("epoch")[1].split(".pt")[0]))
         resume_path = os.path.join(CHECKPOINT_ROOT, last_ckpt)
-        
-        checkpoint = torch.load(resume_path, map_location=device)
+        checkpoint  = torch.load(resume_path, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
-        print(f"Resuming training from epoch {start_epoch}")
+        best_f1     = checkpoint.get('val_f1', 0.0)
+        print(f"Resuming from epoch {start_epoch}, best F1 so far: {best_f1:.4f}")
     else:
         start_epoch = 1
+        best_f1     = 0.0
 
+    # ── Early stopping ────────────────────────────────────
+    patience      = 5
+    epochs_no_imp = 0
+
+    # ── Training loop ─────────────────────────────────────
     for epoch in range(start_epoch, NUM_EPOCHS + 1):
         model.train()
         epoch_loss = 0.0
 
-        tqdm_bar = tqdm(dataloader, desc=f"Epoch {epoch}/{NUM_EPOCHS}", leave=False)
-
-        for x_seq, y_dict in tqdm_bar:
-            # x_seq: (B, T, 1, 128, 128, 128)
-            # y_dict: dict from dataset __getitem__
-            y_batch = y_dict
-
-            # Move to device
-            x_seq = x_seq.to(device).float()
+        tqdm_bar = tqdm(train_loader, desc=f"Epoch {epoch}/{NUM_EPOCHS}", leave=False)
+        for x_seq, y_batch in tqdm_bar:
+            x_seq   = x_seq.to(device).float()
             y_batch = y_batch.to(device).float()
 
-            # Forward + backward
             optimizer.zero_grad()
             y_pred, _ = model(x_seq)
             loss = criterion(y_pred, y_batch)
@@ -117,22 +125,47 @@ def train():
             epoch_loss += loss.item() * x_seq.size(0)
             tqdm_bar.set_postfix({"batch_loss": loss.item()})
 
-        # Average epoch loss
-        avg_loss = epoch_loss / len(dataset)
-        print(f"Epoch {epoch}/{NUM_EPOCHS} - Avg Loss: {avg_loss:.4f}")
+        avg_loss = epoch_loss / len(train_dataset)
 
-        # Save checkpoint
+        # ── Validation ────────────────────────────────────
+        metrics = evaluate(model, val_loader, device)
+        val_f1  = metrics['f1']
+
+        print(f"Epoch {epoch}/{NUM_EPOCHS} — "
+              f"train loss: {avg_loss:.4f}  "
+              f"val acc: {metrics['accuracy']:.4f}  "
+              f"val prec: {metrics['precision']:.4f}  "
+              f"val rec: {metrics['recall']:.4f}  "
+              f"val F1: {val_f1:.4f}")
+
+        # ── LR scheduler ──────────────────────────────────
+        scheduler.step(val_f1)
+
+        # ── Save checkpoint ───────────────────────────────
         checkpoint_path = os.path.join(CHECKPOINT_ROOT, f"combined_model_epoch{epoch}.pt")
-        
-        # Save checkpoint including optimizer
         torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
+            'epoch':                epoch,
+            'model_state_dict':     model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'loss': avg_loss
+            'loss':                 avg_loss,
+            'val_f1':               val_f1
         }, checkpoint_path)
 
-    print("Training complete.")
+        # ── Save best model separately ────────────────────
+        if val_f1 > best_f1:
+            best_f1       = val_f1
+            epochs_no_imp = 0
+            shutil.copy(checkpoint_path, os.path.join(CHECKPOINT_ROOT, 'best_model.pt'))
+            print(f"  New best model saved (F1: {best_f1:.4f}) ✓")
+        else:
+            epochs_no_imp += 1
+            print(f"  No improvement for {epochs_no_imp}/{patience} epochs")
+            if epochs_no_imp >= patience:
+                print(f"Early stopping at epoch {epoch}")
+                break
+
+    print(f"Training complete. Best val F1: {best_f1:.4f}")
+
 
 if __name__ == "__main__":
     train()
