@@ -21,8 +21,8 @@ class MRIDataset(Dataset):
     """
     def __init__(self, data_root=None, label_json_path=None, seq_len=None, split=None):
         self.data_root = data_root or cfg.DATA_ROOT
-        label_json_path = label_json_path or cfg.JSON_ROOT
-        seq_len = seq_len or cfg.SEQ_LEN
+        self.label_json_path = label_json_path or cfg.JSON_ROOT
+        self.seq_len = seq_len or cfg.SEQ_LEN
 
         self.sequence_paths = []
         self.y = []
