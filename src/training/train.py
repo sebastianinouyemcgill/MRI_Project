@@ -38,9 +38,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import shutil
+import utils.config as cfg
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.config import DATA_ROOT, JSON_ROOT, SEQ_LEN, BATCH_SIZE, CHECKPOINT_ROOT, SPLIT_ROOT, NUM_EPOCHS, LR
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
 from training.losses import BinaryClassificationLoss
@@ -52,23 +51,23 @@ def train():
     print(f"Using device: {device}")
 
     # ── Datasets ──────────────────────────────────────────
-    LABEL_JSON  = os.path.join(JSON_ROOT, "labels.json")
-    TRAIN_SPLIT = os.path.join(SPLIT_ROOT, "train.txt")
-    VAL_SPLIT   = os.path.join(SPLIT_ROOT, "val.txt")
+    LABEL_JSON  = os.path.join(cfg.JSON_ROOT, "labels.json")
+    TRAIN_SPLIT = os.path.join(cfg.SPLIT_ROOT, "train.txt")
+    VAL_SPLIT   = os.path.join(cfg.SPLIT_ROOT, "val.txt")
 
-    train_dataset = MRIDataset(DATA_ROOT, LABEL_JSON, seq_len=SEQ_LEN, split=TRAIN_SPLIT)
-    val_dataset   = MRIDataset(DATA_ROOT, LABEL_JSON, seq_len=SEQ_LEN, split=VAL_SPLIT)
+    train_dataset = MRIDataset(cfg.DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN, split=TRAIN_SPLIT)
+    val_dataset   = MRIDataset(cfg.DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN, split=VAL_SPLIT)
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=BATCH_SIZE,
+        batch_size=cfg.BATCH_SIZE,
         shuffle=True,
         num_workers=2,
         pin_memory=True
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=BATCH_SIZE,
+        batch_size=cfg.BATCH_SIZE,
         shuffle=False,
         num_workers=2,
         pin_memory=True
@@ -80,18 +79,18 @@ def train():
         pos_weight=2978 / 1512,
         label_smoothing=0.0   # keep at 0.0 until baseline is stable
     ).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.LR)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='max', factor=0.5, patience=3, verbose=True
     )
 
     # ── Resume from checkpoint ────────────────────────────
-    os.makedirs(CHECKPOINT_ROOT, exist_ok=True)
-    all_ckpts = [f for f in os.listdir(CHECKPOINT_ROOT)
+    os.makedirs(cfg.CHECKPOINT_ROOT, exist_ok=True)
+    all_ckpts = [f for f in os.listdir(cfg.CHECKPOINT_ROOT)
                  if f.startswith("combined_model_epoch") and f.endswith(".pt")]
     if all_ckpts:
         last_ckpt   = max(all_ckpts, key=lambda x: int(x.split("epoch")[1].split(".pt")[0]))
-        resume_path = os.path.join(CHECKPOINT_ROOT, last_ckpt)
+        resume_path = os.path.join(cfg.CHECKPOINT_ROOT, last_ckpt)
         checkpoint  = torch.load(resume_path, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -107,11 +106,11 @@ def train():
     epochs_no_imp = 0
 
     # ── Training loop ─────────────────────────────────────
-    for epoch in range(start_epoch, NUM_EPOCHS + 1):
+    for epoch in range(start_epoch, cfg.NUM_EPOCHS + 1):
         model.train()
         epoch_loss = 0.0
 
-        tqdm_bar = tqdm(train_loader, desc=f"Epoch {epoch}/{NUM_EPOCHS}", leave=False)
+        tqdm_bar = tqdm(train_loader, desc=f"Epoch {epoch}/{cfg.NUM_EPOCHS}", leave=False)
         for x_seq, y_batch in tqdm_bar:
             x_seq   = x_seq.to(device).float()
             y_batch = y_batch.to(device).float()
@@ -131,7 +130,7 @@ def train():
         metrics = evaluate(model, val_loader, device)
         val_f1  = metrics['f1']
 
-        print(f"Epoch {epoch}/{NUM_EPOCHS} — "
+        print(f"Epoch {epoch}/{cfg.NUM_EPOCHS} — "
               f"train loss: {avg_loss:.4f}  "
               f"val acc: {metrics['accuracy']:.4f}  "
               f"val prec: {metrics['precision']:.4f}  "
@@ -142,7 +141,7 @@ def train():
         scheduler.step(val_f1)
 
         # ── Save checkpoint ───────────────────────────────
-        checkpoint_path = os.path.join(CHECKPOINT_ROOT, f"combined_model_epoch{epoch}.pt")
+        checkpoint_path = os.path.join(cfg.CHECKPOINT_ROOT, f"combined_model_epoch{epoch}.pt")
         torch.save({
             'epoch':                epoch,
             'model_state_dict':     model.state_dict(),
@@ -155,7 +154,7 @@ def train():
         if val_f1 > best_f1:
             best_f1       = val_f1
             epochs_no_imp = 0
-            shutil.copy(checkpoint_path, os.path.join(CHECKPOINT_ROOT, 'best_model.pt'))
+            shutil.copy(checkpoint_path, os.path.join(cfg.CHECKPOINT_ROOT, 'best_model.pt'))
             print(f"  New best model saved (F1: {best_f1:.4f}) ✓")
         else:
             epochs_no_imp += 1
