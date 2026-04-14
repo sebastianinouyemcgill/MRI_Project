@@ -18,9 +18,9 @@ Output:
 
 import torch
 import torch.nn as nn
-from cnn_encoder import CNNEncoder
-from lstm_temporal import LSTMTemporal
-from utils.config import cfg
+from src.models.cnn_encoder import CNNEncoder
+from src.models.lstm_temporal import LSTMTemporal
+from src.utils.config import cfg
 
 class combined_model(nn.Module):
     def __init__(self):

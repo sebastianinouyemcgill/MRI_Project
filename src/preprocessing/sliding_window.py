@@ -1,6 +1,5 @@
-import os
 import json
-from utils.config import cfg
+from src.utils.config import cfg
 from datetime import datetime
 
 def parse_date(d):

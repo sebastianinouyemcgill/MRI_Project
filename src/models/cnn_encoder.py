@@ -12,7 +12,7 @@ Usage:
 
 import torch
 import torch.nn as nn
-from utils.config import cfg
+from src.utils.config import cfg
 
 class CNNEncoder(nn.Module):
     def __init__(self):

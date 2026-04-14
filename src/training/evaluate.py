@@ -2,9 +2,9 @@ import os
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils.config import cfg
-from preprocessing.dataset import MRIDataset
-from models.combined_model import combined_model
+from src.utils.config import cfg
+from src.preprocessing.dataset import MRIDataset
+from src.models.combined_model import combined_model
 
 def compute_metrics(preds, targets):
     """

@@ -3,11 +3,11 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import shutil
-from utils.config import cfg
-from preprocessing.dataset import MRIDataset
-from models.combined_model import combined_model
-from training.losses import BinaryClassificationLoss
-from training.evaluate import evaluate
+from src.utils.config import cfg
+from src.preprocessing.dataset import MRIDataset
+from src.models.combined_model import combined_model
+from src.training.losses import BinaryClassificationLoss
+from src.training.evaluate import evaluate
 
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -25,14 +25,14 @@ def train():
         train_dataset,
         batch_size=cfg.BATCH_SIZE,
         shuffle=True,
-        num_workers=2,
+        num_workers=0,
         pin_memory=True
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=cfg.BATCH_SIZE,
         shuffle=False,
-        num_workers=2,
+        num_workers=0,
         pin_memory=True
     )
 
@@ -85,7 +85,7 @@ def train():
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
-            
+
             epoch_loss += loss.item() * x_seq.size(0)
             tqdm_bar.set_postfix({"batch_loss": loss.item()})
 

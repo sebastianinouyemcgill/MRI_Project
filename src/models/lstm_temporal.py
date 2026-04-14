@@ -12,7 +12,7 @@ Usage:
     y_pred, hidden = lstm(features)
 """
 
-from utils.config import cfg
+from src.utils.config import cfg
 import torch
 import torch.nn as nn
 

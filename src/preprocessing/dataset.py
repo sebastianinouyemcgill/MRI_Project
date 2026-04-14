@@ -3,8 +3,8 @@ import json
 import torch
 from datetime import datetime
 from torch.utils.data import Dataset
-from preprocessing.sliding_window import create_sliding_windows
-from utils.config import cfg
+from src.preprocessing.sliding_window import create_sliding_windows
+from src.utils.config import cfg
 
 def parse_date(d):
         return datetime.strptime(d, "%Y-%m-%d")
