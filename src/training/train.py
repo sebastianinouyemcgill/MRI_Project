@@ -48,6 +48,14 @@ from training.evaluate import evaluate
 
 
 def train():
+
+    import utils.config as cfg
+    print("DEBUG cfg.DATA_ROOT:", cfg.DATA_ROOT)
+    print("DEBUG cfg.JSON_ROOT:", cfg.JSON_ROOT)
+    print("DEBUG cfg.SPLIT_ROOT:", cfg.SPLIT_ROOT)
+    print("DEBUG LABEL_JSON exists:", os.path.exists(os.path.join(cfg.JSON_ROOT, "labels.json")))
+    print("DEBUG TRAIN_SPLIT exists:", os.path.exists(os.path.join(cfg.SPLIT_ROOT, "train.txt")))
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
