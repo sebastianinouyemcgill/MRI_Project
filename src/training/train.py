@@ -13,6 +13,7 @@ def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+    print("Loading datasets...")
     # datasets
     LABEL_JSON  = os.path.join(cfg.JSON_ROOT, "labels.json")
     TRAIN_SPLIT = os.path.join(cfg.SPLIT_ROOT, "train.txt")
@@ -20,6 +21,11 @@ def train():
 
     train_dataset = MRIDataset(cfg.COLAB_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN, split=TRAIN_SPLIT)
     val_dataset   = MRIDataset(cfg.COLAB_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN, split=VAL_SPLIT)
+
+    print(f"Train samples: {len(train_dataset)}")
+    print(f"Val samples: {len(val_dataset)}")
+
+    print("Creating dataloaders...")
 
     train_loader = DataLoader(
         train_dataset,
@@ -36,16 +42,29 @@ def train():
         pin_memory=True
     )
 
+    print("Initializing model")
+
     # model, loss, optimizer, scheduler
     model = combined_model().to(device)
+
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
+
     criterion = BinaryClassificationLoss(
         pos_weight=cfg.POS_WEIGHT, # update based on SEQ_LEN
         label_smoothing=0.0 # keep at 0.0 until baseline stable
     ).to(device)
+
+    print(f"Using pos_weight: {cfg.POS_WEIGHT:.4f}")
+
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.LR)
+
+    print("Starting training...")
+
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='max', factor=0.5, patience=3
     )
+
+    print(f"Training for {cfg.NUM_EPOCHS} epochs with batch size {cfg.BATCH_SIZE}...")
 
     """
     # resume from checkpoint
@@ -73,6 +92,9 @@ def train():
 
     # training loop
     for epoch in range(start_epoch, cfg.NUM_EPOCHS + 1):
+
+        print(f"\nEpoch {epoch}/{cfg.NUM_EPOCHS}")
+        
         model.train()
         epoch_loss = 0.0
 
