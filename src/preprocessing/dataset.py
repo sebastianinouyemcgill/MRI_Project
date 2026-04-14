@@ -1,9 +1,8 @@
-import sys
-from torch.utils.data import Dataset
 import os
 import json
 import torch
 from datetime import datetime
+from torch.utils.data import Dataset
 from preprocessing.sliding_window import create_sliding_windows
 from utils.config import cfg
 
@@ -29,17 +28,17 @@ class MRIDataset(Dataset):
         self.days_elapsed   = []
         self.y              = []
 
-        # Load labels
+        # load labels
         with open(label_json_path or cfg.JSON_ROOT, "r") as f:
             labels = json.load(f)
 
-        # Apply split if provided
+        # apply split if provided
         if split is not None:
             with open(split, "r") as f:
                 patient_ids = set(line.strip() for line in f)
             labels = {pid: info for pid, info in labels.items() if pid in patient_ids}
 
-        # Generate sliding window metadata (NO tensors)
+        # generate sliding window metadata
         X_meta, y = create_sliding_windows(labels, seq_len=self.seq_len)
 
         for meta, label in zip(X_meta, y):
@@ -65,15 +64,13 @@ class MRIDataset(Dataset):
             # only keep full valid sequences
             if len(seq_paths) == len(date_list):
 
-                # extract days_elapsed for each transition in this sequence
-                # labels[pid] keys are like "t1_t2", "t2_t3", etc. sorted by transition
+                # extract days_elapsed for each transition in sequence
                 sorted_items = sorted(
-                    labels[pid].items(),
+                    labels[pid].items(), # labels[pid] keys in format "t1_t2", "t2_t3", etc. sorted by transition
                 key=lambda x: parse_date(x[1]["date_ti"])
                 )
 
-                # for SEQ_LEN=2 there is 1 transition (t1_t2)
-                # we pad to length T by prepending 0 for the first timepoint
+                # pad to length T by prepending 0 for the first timepoint
                 days = [0.0] + [
                     float(sorted_items[j][1]["days_elapsed"])
                     for j in range(start_idx, start_idx + len(date_list) - 1)
@@ -101,7 +98,7 @@ class MRIDataset(Dataset):
         if x_seq.ndim == 4:
             x_seq = x_seq.unsqueeze(1)
 
-        # log-normalize days (compresses large gaps, e.g. 365 → 5.9, 7 → 2.1)
+        # log-normalize days (compresses large gaps)
         days_tensor = torch.log1p(
             torch.tensor(self.days_elapsed[idx], dtype=torch.float32)
         )  # (T,)
@@ -112,10 +109,9 @@ class MRIDataset(Dataset):
 
 
 if __name__ == "__main__":
-    LABEL_JSON = "../../data/json/mini/labels.json"
-    DATA_ROOT = "../../data/processed"  # update as needed
+    LABEL_JSON = cfg.JSON_ROOT + "/labels.json"
 
-    dataset = MRIDataset(DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN)
+    dataset = MRIDataset(cfg.DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN)
     print(f"Dataset length: {len(dataset)}")
 
     x, days, y = dataset[0]
