@@ -15,10 +15,10 @@ class Config:
         self.MODALITY = "POST"
         self.NUM_EPOCHS = 20
         self.LR = 1e-4
+        self.POS_WEIGHT = 2470 / 1347 # update based on SEQ_LEN
 
 cfg = Config()
 
-# Paths
 # DATA_ROOT =  os.path.join(LOCAL_ROOT, 'data/processed') # "../../data/processed"  # "/Volumes/SSD 2/Projects/MRI Project/Processed Data"
 # SPLIT_ROOT = os.path.join(LOCAL_ROOT, 'splits') # "../../splits/mini"             # for train/test/val txts
 # JSON_ROOT = os.path.join(LOCAL_ROOT, 'data/json') # "../../data/json/mini"           # for volumes.json / labels.json
