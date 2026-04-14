@@ -77,7 +77,7 @@ def train():
     # ── Model, loss, optimizer, scheduler ─────────────────
     model     = combined_model().to(device)
     criterion = BinaryClassificationLoss(
-        pos_weight=2978 / 1512,
+        pos_weight=2470 / 1347, # update based on seq_len
         label_smoothing=0.0   # keep at 0.0 until baseline is stable
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.LR)

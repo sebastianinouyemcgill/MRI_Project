@@ -8,7 +8,7 @@ class BinaryClassificationLoss(nn.Module):
 
     Args:
         pos_weight (float): weight for positive class to handle class imbalance.
-                           Set to neg_count / pos_count (e.g. 2978 / 1512 ≈ 1.97)
+                           Set to neg_count / pos_count (e.g. 2978 / 1512 ≈ 1.97) based on seq_len=2 distribution.
         label_smoothing (float): smooths hard 0/1 labels to reduce overconfidence.
                                  0.0 = no smoothing, 0.1 = slight smoothing.
     """
@@ -36,7 +36,7 @@ class BinaryClassificationLoss(nn.Module):
 
 if __name__ == "__main__":
     # simulate your class distribution
-    POS_WEIGHT = 2978 / 1512
+    POS_WEIGHT = 2470 / 1347 # update based on seq_len
 
     loss_fn = BinaryClassificationLoss(pos_weight=POS_WEIGHT, label_smoothing=0.1)
 
