@@ -6,8 +6,6 @@ import torch
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from preprocessing.sliding_window import create_sliding_windows
 import utils.config as cfg
-import importlib
-importlib.reload(cfg)
 
 
 class MRIDataset(Dataset):
@@ -21,9 +19,10 @@ class MRIDataset(Dataset):
         x_tensor: (T, 1, H, W, D)
         y_label: torch tensor float32, shape (1,)
     """
-    def __init__(self, data_root=cfg.DATA_ROOT, label_json_path=cfg.JSON_ROOT, seq_len=cfg.SEQ_LEN, split=None):
-        self.data_root = data_root
-        self.seq_len = seq_len
+    def __init__(self, data_root=None, label_json_path=None, seq_len=None, split=None):
+        self.data_root = data_root or cfg.DATA_ROOT
+        label_json_path = label_json_path or cfg.JSON_ROOT
+        seq_len = seq_len or cfg.SEQ_LEN
 
         self.sequence_paths = []
         self.y = []
