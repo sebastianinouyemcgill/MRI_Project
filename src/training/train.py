@@ -69,6 +69,7 @@ def train():
     # early stopping
     patience = 5
     epochs_no_imp = 0
+    start_epoch = 1
 
     # training loop
     for epoch in range(start_epoch, cfg.NUM_EPOCHS + 1):

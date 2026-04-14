@@ -5,6 +5,8 @@ from datetime import datetime
 from torch.utils.data import Dataset
 from src.preprocessing.sliding_window import create_sliding_windows
 from src.utils.config import cfg
+import time
+
 
 def parse_date(d):
         return datetime.strptime(d, "%Y-%m-%d")
@@ -53,8 +55,13 @@ class MRIDataset(Dataset):
                 if not os.path.exists(folder):
                     continue
 
-                files = [f for f in os.listdir(folder)
-                         if f.endswith(".pt") and not f.startswith("._")]
+                start = time.time()
+                print(f"Scanning: {folder}")
+
+                files = os.listdir(folder)
+
+                print(f"Done in {time.time() - start:.3f}s: {folder}")
+                files = [f for f in files if f.endswith(".pt") and not f.startswith("._")]
 
                 if len(files) == 0:
                     continue
