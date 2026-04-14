@@ -2,7 +2,7 @@
 LSTMTemporal
 
 Input:
-    features: torch.Tensor of shape (B, T, FEATURE_DIM)  # features from CNN for each timepoint
+    features: torch.Tensor of shape (B, T, FEATURE_DIM + 1)  # features from CNN for each timepoint (w/ days_elapsed)
     hidden: optional hidden state tuple (h_0, c_0)
 
 Output:
@@ -31,7 +31,7 @@ class LSTMTemporal(nn.Module):
     ):
         super(LSTMTemporal, self).__init__()
 
-        self.feature_dim = FEATURE_DIM
+        self.feature_dim = FEATURE_DIM + 1 # CNN features + time delta
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
 
@@ -69,8 +69,8 @@ class LSTMTemporal(nn.Module):
 if __name__ == "__main__":
 
     model = LSTMTemporal()
-    dummy_input = torch.randn(BATCH_SIZE, SEQ_LEN, FEATURE_DIM)
+    dummy_input = torch.randn(BATCH_SIZE, SEQ_LEN, FEATURE_DIM + 1)  # +1 for days_elapsed
     logits, hidden = model(dummy_input)
 
-    print("Input shape:", dummy_input.shape)
+    print("Input shape:", dummy_input.shape) # should be (BATCH_SIZE, SEQ_LEN, FEATURE_DIM + 1)
     print("Output shape:", logits.shape)  # should be (BATCH_SIZE, 1)
