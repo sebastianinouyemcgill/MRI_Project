@@ -18,8 +18,8 @@ def train():
     TRAIN_SPLIT = os.path.join(cfg.SPLIT_ROOT, "train.txt")
     VAL_SPLIT   = os.path.join(cfg.SPLIT_ROOT, "val.txt")
 
-    train_dataset = MRIDataset(cfg.DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN, split=TRAIN_SPLIT)
-    val_dataset   = MRIDataset(cfg.DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN, split=VAL_SPLIT)
+    train_dataset = MRIDataset(cfg.COLAB_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN, split=TRAIN_SPLIT)
+    val_dataset   = MRIDataset(cfg.COLAB_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN, split=VAL_SPLIT)
 
     train_loader = DataLoader(
         train_dataset,
