@@ -1,9 +1,7 @@
 import os
-import sys
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
 from utils.config import cfg
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
@@ -46,25 +44,41 @@ def evaluate(model, dataloader, device):
         for x, days, y in tqdm(dataloader, desc="Evaluating"):
             x = x.to(device)
             days = days.to(device).float()
-            y = y.to(device)
+            y = y.to(device).float()
 
             logits, _ = model(x, days)
             probs     = torch.sigmoid(logits)
-            preds     = (probs > 0.5).float()
 
-            all_preds.append(preds)
+            all_preds.append(probs)
             all_targets.append(y)
 
-    all_preds   = torch.cat(all_preds).view(-1)
+    all_probs   = torch.cat(all_probs).view(-1)
     all_targets = torch.cat(all_targets).view(-1)
 
-    return compute_metrics(all_preds, all_targets)
+    best_f1 = 0.0
+    best_t  = 0.5
 
+    for t in torch.linspace(0.1, 0.9, 81):
+        preds = (all_probs > t).float()
+
+        metrics = compute_metrics(preds, all_targets)
+
+        if metrics["f1"] > best_f1:
+            best_f1 = metrics["f1"]
+            best_t  = t.item()
+    
+    best_preds = (all_probs > best_t).float()
+    final_metrics = compute_metrics(best_preds, all_targets)
+
+    return {
+        **final_metrics,
+        "best_threshold": best_t
+    }
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Validation dataset
+    # validation dataset
     val_file = os.path.join(cfg.SPLIT_ROOT, "val.txt")
 
     dataset = MRIDataset(
@@ -75,7 +89,7 @@ if __name__ == "__main__":
     )
     dataloader = DataLoader(dataset, batch_size=2, shuffle=False, num_workers=2)
 
-    # Sort checkpoints by epoch
+    # sort checkpoints by epoch
     ckpts = sorted(
         [f for f in os.listdir(cfg.CHECKPOINT_ROOT)
          if f.startswith("combined_model_epoch") and f.endswith(".pt")],
@@ -104,6 +118,6 @@ if __name__ == "__main__":
         for k, v in metrics.items():
             print(f"  {k}: {v:.4f}")
 
-    # Summary: best epoch by F1
+    # summary of best epoch by F1
     best_epoch = max(results, key=lambda e: results[e]['f1'])
     print(f"\nBest epoch by F1: {best_epoch} — F1: {results[best_epoch]['f1']:.4f}")

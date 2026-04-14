@@ -1,56 +1,19 @@
-"""
-train.py: Training loop for CNN+LSTM CombinedModel
-
-Inputs:
-    - Dataset:
-        MRIDataset instance
-        - Returns:
-            x_tensor: torch.Tensor of shape (T, 1, 128, 128, 128)
-            y_label: dict with key "label" -> int {0,1}
-
-    - Config (utils.config):
-        DATA_ROOT: str      # path to preprocessed tensors
-        JSON_ROOT: str      # path to labels.json
-        SEQ_LEN: int        # number of consecutive timepoints per sequence
-        FEATURE_DIM: int    # output feature dimension of CNN
-        BATCH_SIZE: int
-        CHECKPOINT_ROOT: str # directory to save model weights
-
-    - Model:
-        CombinedModel (CNN + LSTM)
-        - Input: (B, T, 1, 128, 128, 128)
-        - Output: y_pred: (B,1), hidden: optional tuple
-
-Outputs:
-    - Saved files in CHECKPOINT_ROOT:
-        - combined_model_epoch{n}.pt (model state dict per epoch)
-    - Console output (tqdm progress bar + epoch loss)
-
-Exceptions / errors:
-    - FileNotFoundError if DATA_ROOT or JSON_ROOT not found
-    - RuntimeError if CUDA OOM occurs (GPU memory exceeded)
-"""
-
 import os
-import sys
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import shutil
-
 from utils.config import cfg
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
 from training.losses import BinaryClassificationLoss
 from training.evaluate import evaluate
 
-
 def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # ── Datasets ──────────────────────────────────────────
+    # datasets
     LABEL_JSON  = os.path.join(cfg.JSON_ROOT, "labels.json")
     TRAIN_SPLIT = os.path.join(cfg.SPLIT_ROOT, "train.txt")
     VAL_SPLIT   = os.path.join(cfg.SPLIT_ROOT, "val.txt")
@@ -73,18 +36,18 @@ def train():
         pin_memory=True
     )
 
-    # ── Model, loss, optimizer, scheduler ─────────────────
-    model     = combined_model().to(device)
+    # model, loss, optimizer, scheduler
+    model = combined_model().to(device)
     criterion = BinaryClassificationLoss(
-        pos_weight=2470 / 1347, # update based on seq_len
-        label_smoothing=0.0   # keep at 0.0 until baseline is stable
+        pos_weight=cfg.POS_WEIGHT, # update based on SEQ_LEN
+        label_smoothing=0.0 # keep at 0.0 until baseline stable
     ).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.LR)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='max', factor=0.5, patience=3
     )
 
-    # ── Resume from checkpoint ────────────────────────────
+    # resume from checkpoint
     os.makedirs(cfg.CHECKPOINT_ROOT, exist_ok=True)
     all_ckpts = [f for f in os.listdir(cfg.CHECKPOINT_ROOT)
                  if f.startswith("combined_model_epoch") and f.endswith(".pt")]
@@ -99,13 +62,13 @@ def train():
         print(f"Resuming from epoch {start_epoch}, best F1 so far: {best_f1:.4f}")
     else:
         start_epoch = 1
-        best_f1     = 0.0
+        best_f1 = 0.0
 
-    # ── Early stopping ────────────────────────────────────
-    patience      = 5
+    # early stopping
+    patience = 5
     epochs_no_imp = 0
 
-    # ── Training loop ─────────────────────────────────────
+    # training loop
     for epoch in range(start_epoch, cfg.NUM_EPOCHS + 1):
         model.train()
         epoch_loss = 0.0
@@ -120,14 +83,15 @@ def train():
             y_pred, _ = model(x_seq, days)
             loss = criterion(y_pred, y_batch)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
-
+            
             epoch_loss += loss.item() * x_seq.size(0)
             tqdm_bar.set_postfix({"batch_loss": loss.item()})
 
         avg_loss = epoch_loss / len(train_dataset)
 
-        # ── Validation ────────────────────────────────────
+        # validation
         metrics = evaluate(model, val_loader, device)
         val_f1  = metrics['f1']
 
@@ -138,10 +102,10 @@ def train():
               f"val rec: {metrics['recall']:.4f}  "
               f"val F1: {val_f1:.4f}")
 
-        # ── LR scheduler ──────────────────────────────────
+        # LR scheduler
         scheduler.step(val_f1)
 
-        # ── Save checkpoint ───────────────────────────────
+        # save checkpoint
         checkpoint_path = os.path.join(cfg.CHECKPOINT_ROOT, f"combined_model_epoch{epoch}.pt")
         torch.save({
             'epoch':                epoch,
@@ -151,7 +115,7 @@ def train():
             'val_f1':               val_f1
         }, checkpoint_path)
 
-        # ── Save best model separately ────────────────────
+        # save best model separately
         if val_f1 > best_f1:
             best_f1       = val_f1
             epochs_no_imp = 0
