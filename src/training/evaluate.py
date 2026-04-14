@@ -37,7 +37,7 @@ def evaluate(model, dataloader, device):
     Returns dict of metrics.
     """
     model.eval()
-    all_preds   = []
+    all_probs   = []
     all_targets = []
 
     with torch.no_grad():
@@ -49,8 +49,8 @@ def evaluate(model, dataloader, device):
             logits, _ = model(x, days)
             probs     = torch.sigmoid(logits)
 
-            all_preds.append(probs)
-            all_targets.append(y)
+            all_probs.append(probs.detach().cpu())
+            all_targets.append(y.view(-1).detach().cpu())
 
     all_probs   = torch.cat(all_probs).view(-1)
     all_targets = torch.cat(all_targets).view(-1)

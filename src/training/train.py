@@ -25,7 +25,6 @@ def train():
     print(f"Train samples: {len(train_dataset)}")
     print(f"Val samples: {len(val_dataset)}")
 
-    print("/nCreating dataloaders...")
     train_loader = DataLoader(
         train_dataset,
         batch_size=cfg.BATCH_SIZE,
@@ -53,7 +52,6 @@ def train():
     )
     print("Starting training...")
 
-    """
     # resume from checkpoint
     os.makedirs(cfg.CHECKPOINT_ROOT, exist_ok=True)
     all_ckpts = [f for f in os.listdir(cfg.CHECKPOINT_ROOT)
@@ -70,12 +68,10 @@ def train():
     else:
         start_epoch = 1
         best_f1 = 0.0
-    """
 
     # early stopping
     patience = 5
     epochs_no_imp = 0
-    start_epoch = 1
 
     # training loop
     for epoch in range(start_epoch, cfg.NUM_EPOCHS + 1):
@@ -85,7 +81,7 @@ def train():
 
         tqdm_bar = tqdm(train_loader, desc=f"Epoch {epoch}/{cfg.NUM_EPOCHS}", leave=False)
         for x_seq, days, y_batch in tqdm_bar:
-            x_seq   = x_seq.to(device).float()
+            x_seq   = x_seq.to(device)
             days = days.to(device).float()
             y_batch = y_batch.to(device).float()
 
