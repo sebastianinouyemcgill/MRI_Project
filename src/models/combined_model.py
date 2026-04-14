@@ -27,7 +27,7 @@ import torch.nn as nn
 
 from models.cnn_encoder import CNNEncoder
 from models.lstm_temporal import LSTMTemporal
-from utils.config import FEATURE_DIM
+from utils.config import cfg
 
 
 class combined_model(nn.Module):
