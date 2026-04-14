@@ -68,10 +68,10 @@ class combined_model(nn.Module):
 
 
 if __name__ == "__main__":
-    from utils.config import BATCH_SIZE, SEQ_LEN
+    from utils.config import cfg
 
-    x    = torch.randn(BATCH_SIZE, SEQ_LEN, 1, 128, 128, 128)
-    days = torch.randn(BATCH_SIZE, SEQ_LEN)
+    x    = torch.randn(cfg.BATCH_SIZE, cfg.SEQ_LEN, 1, 128, 128, 128)
+    days = torch.randn(cfg.BATCH_SIZE, cfg.SEQ_LEN)
 
     model = combined_model()
     y_pred, hidden = model(x, days)
