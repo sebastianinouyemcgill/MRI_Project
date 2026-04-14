@@ -1,6 +1,4 @@
 """
-CNNEncoder
-
 Input:
     x: torch.Tensor of shape (B*T, 1, 128, 128, 128)  # flattened batch-time sequences
 
@@ -12,12 +10,9 @@ Usage:
     features = encoder(x)
 """
 
-import sys
-import os
 import torch
 import torch.nn as nn
 from utils.config import cfg
-
 
 class CNNEncoder(nn.Module):
     def __init__(self):

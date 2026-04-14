@@ -1,6 +1,4 @@
 """
-combined_model
-
 Input:
     x: torch.Tensor of shape (B, T, 1, 128, 128, 128)  # raw POST scans
     days: torch.Tensor of shape (B, T) # log-normalized days_elapsed per timestep
@@ -18,17 +16,11 @@ Output:
     hidden: optional hidden state tuple
 """
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import torch
 import torch.nn as nn
-
 from models.cnn_encoder import CNNEncoder
 from models.lstm_temporal import LSTMTemporal
 from utils.config import cfg
-
 
 class combined_model(nn.Module):
     def __init__(self):
@@ -49,7 +41,7 @@ class combined_model(nn.Module):
         B, T, C, D, H, W = x.shape
 
         # Step 1: Flatten time
-        x = x.view(B * T, C, D, H, W)          # (B*T, 1, 128, 128, 128)
+        x = x.view(B * T, C, D, H, W)           # (B*T, 1, 128, 128, 128)
 
         # Step 2: CNN Encoder
         features = self.encoder(x)              # (B*T, FEATURE_DIM)
@@ -70,7 +62,7 @@ class combined_model(nn.Module):
 if __name__ == "__main__":
     from utils.config import cfg
 
-    x    = torch.randn(cfg.BATCH_SIZE, cfg.SEQ_LEN, 1, 128, 128, 128)
+    x = torch.randn(cfg.BATCH_SIZE, cfg.SEQ_LEN, 1, 128, 128, 128)
     days = torch.randn(cfg.BATCH_SIZE, cfg.SEQ_LEN)
 
     model = combined_model()
