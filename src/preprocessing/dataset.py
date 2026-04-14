@@ -3,10 +3,13 @@ from torch.utils.data import Dataset
 import os
 import json
 import torch
+from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from preprocessing.sliding_window import create_sliding_windows
 import utils.config as cfg
 
+def parse_date(d):
+        return datetime.strptime(d, "%Y-%m-%d")
 
 class MRIDataset(Dataset):
     """
@@ -16,7 +19,9 @@ class MRIDataset(Dataset):
         x_seq:    (T, 1, H, W, D)
         days:     (T,) log-normalized days_elapsed per timestep
         y_label:  float32 tensor, shape (1,)
+
     """
+
     def __init__(self, data_root=None, label_json_path=None, seq_len=None, split=None):
         self.data_root = data_root or cfg.DATA_ROOT
         self.seq_len   = seq_len or cfg.SEQ_LEN
@@ -38,7 +43,10 @@ class MRIDataset(Dataset):
         # Generate sliding window metadata (NO tensors)
         X_meta, y = create_sliding_windows(labels, seq_len=self.seq_len)
 
-        for (pid, date_list), label in zip(X_meta, y):
+        for meta, label in zip(X_meta, y):
+            pid = meta["pid"]
+            date_list = meta["dates"]
+            start_idx = meta["start_idx"]
             seq_paths = []
 
             for date in date_list:
@@ -57,16 +65,24 @@ class MRIDataset(Dataset):
 
             # only keep full valid sequences
             if len(seq_paths) == len(date_list):
+
                 # extract days_elapsed for each transition in this sequence
                 # labels[pid] keys are like "t1_t2", "t2_t3", etc. sorted by transition
-                transitions = sorted(labels[pid].keys())
+                sorted_items = sorted(
+                    labels[pid].items(),
+                key=lambda x: parse_date(x[1]["date_ti"])
+                )
 
                 # for SEQ_LEN=2 there is 1 transition (t1_t2)
                 # we pad to length T by prepending 0 for the first timepoint
                 days = [0.0] + [
-                    float(labels[pid][t]['days_elapsed'])
-                    for t in transitions[:len(date_list) - 1]
+                    float(sorted_items[j][1]["days_elapsed"])
+                    for j in range(start_idx, start_idx + len(date_list) - 1)
                 ]
+
+                if len(days) != len(date_list):
+                    print(f"[SKIP] Days misaligned for {pid}")
+                    continue
 
                 self.sequence_paths.append(seq_paths)
                 self.days_elapsed.append(days)
@@ -97,9 +113,10 @@ class MRIDataset(Dataset):
 
 
 if __name__ == "__main__":
-    LABEL_JSON = os.path.join(cfg.JSON_ROOT, "labels.json")
+    LABEL_JSON = "../../data/json/mini/labels.json"
+    DATA_ROOT = "../../data/processed"  # update as needed
 
-    dataset = MRIDataset(cfg.DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN)
+    dataset = MRIDataset(DATA_ROOT, LABEL_JSON, seq_len=cfg.SEQ_LEN)
     print(f"Dataset length: {len(dataset)}")
 
     x, days, y = dataset[0]
