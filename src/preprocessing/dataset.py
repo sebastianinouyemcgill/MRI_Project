@@ -4,9 +4,8 @@ import os
 import json
 import torch
 from datetime import datetime
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from preprocessing.sliding_window import create_sliding_windows
-import utils.config as cfg
+from utils.config import cfg
 
 def parse_date(d):
         return datetime.strptime(d, "%Y-%m-%d")

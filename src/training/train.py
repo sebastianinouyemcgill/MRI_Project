@@ -39,8 +39,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import shutil
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import utils.config as cfg
+from utils.config import cfg
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
 from training.losses import BinaryClassificationLoss

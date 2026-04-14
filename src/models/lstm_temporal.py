@@ -16,8 +16,7 @@ Usage:
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.config import FEATURE_DIM, BATCH_SIZE ,SEQ_LEN
+from utils.config import cfg
 import torch
 import torch.nn as nn
 
@@ -31,7 +30,7 @@ class LSTMTemporal(nn.Module):
     ):
         super(LSTMTemporal, self).__init__()
 
-        self.feature_dim = FEATURE_DIM + 1 # CNN features + time delta
+        self.feature_dim = cfg.FEATURE_DIM + 1 # CNN features + time delta
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
 
@@ -69,7 +68,7 @@ class LSTMTemporal(nn.Module):
 if __name__ == "__main__":
 
     model = LSTMTemporal()
-    dummy_input = torch.randn(BATCH_SIZE, SEQ_LEN, FEATURE_DIM + 1)  # +1 for days_elapsed
+    dummy_input = torch.randn(cfg.BATCH_SIZE, cfg.SEQ_LEN, cfg.FEATURE_DIM + 1)  # +1 for days_elapsed
     logits, hidden = model(dummy_input)
 
     print("Input shape:", dummy_input.shape) # should be (BATCH_SIZE, SEQ_LEN, FEATURE_DIM + 1)

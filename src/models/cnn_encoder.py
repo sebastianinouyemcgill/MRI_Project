@@ -16,8 +16,7 @@ import sys
 import os
 import torch
 import torch.nn as nn
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.config import FEATURE_DIM
+from utils.config import cfg
 
 
 class CNNEncoder(nn.Module):
@@ -30,7 +29,7 @@ class CNNEncoder(nn.Module):
         self.conv_block4 = self._conv_block(64, 128)   # (16 -> 8)
 
         self.global_pool = nn.AdaptiveAvgPool3d((1, 1, 1))
-        self.fc = nn.Linear(128, FEATURE_DIM)
+        self.fc = nn.Linear(128, cfg.FEATURE_DIM)
 
     def _conv_block(self, in_channels, out_channels):
         return nn.Sequential(
