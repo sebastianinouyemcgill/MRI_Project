@@ -2,7 +2,7 @@ import os
 
 class Config:
     def __init__(self):
-        self.LOCAL_ROOT   = "/content/drive/MyDrive/MRI_PROJECT"
+        self.LOCAL_ROOT   = "/content/drive/MyDrive/MRI_Project"
         self.DATA_ROOT = os.path.join(self.LOCAL_ROOT, "data/processed/Processed Post")
         self.SPLIT_ROOT = os.path.join(self.LOCAL_ROOT, "splits")
         self.JSON_ROOT = os.path.join(self.LOCAL_ROOT, "data/json")
