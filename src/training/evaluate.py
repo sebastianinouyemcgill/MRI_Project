@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.config import DATA_ROOT, JSON_ROOT, SEQ_LEN, SPLIT_ROOT, CHECKPOINT_ROOT
+import utils.config as cfg
 from preprocessing.dataset import MRIDataset
 from models.combined_model import combined_model
 
@@ -45,11 +45,12 @@ def evaluate(model, dataloader, device):
     all_targets = []
 
     with torch.no_grad():
-        for x, y in tqdm(dataloader, desc="Evaluating"):
+        for x, days, y in tqdm(dataloader, desc="Evaluating"):
             x = x.to(device)
+            days = days.to(device).float()
             y = y.to(device)
 
-            logits, _ = model(x)
+            logits, _ = model(x, days)
             probs     = torch.sigmoid(logits)
             preds     = (probs > 0.5).float()
 
@@ -66,25 +67,25 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Validation dataset
-    val_file = os.path.join(SPLIT_ROOT, "val.txt")
+    val_file = os.path.join(cfg.SPLIT_ROOT, "val.txt")
 
     dataset = MRIDataset(
-        data_root=DATA_ROOT,
-        label_json_path=os.path.join(JSON_ROOT, "labels.json"),
-        seq_len=SEQ_LEN,
+        data_root=cfg.DATA_ROOT,
+        label_json_path=os.path.join(cfg.JSON_ROOT, "labels.json"),
+        seq_len=cfg.SEQ_LEN,
         split=val_file
     )
     dataloader = DataLoader(dataset, batch_size=2, shuffle=False, num_workers=2)
 
     # Sort checkpoints by epoch
     ckpts = sorted(
-        [f for f in os.listdir(CHECKPOINT_ROOT)
+        [f for f in os.listdir(cfg.CHECKPOINT_ROOT)
          if f.startswith("combined_model_epoch") and f.endswith(".pt")],
         key=lambda x: int(x.split("epoch")[1].split(".pt")[0])
     )
 
     if not ckpts:
-        print("No checkpoints found in", CHECKPOINT_ROOT)
+        print("No checkpoints found in", cfg.CHECKPOINT_ROOT)
         exit()
 
     results = {}
@@ -93,7 +94,7 @@ if __name__ == "__main__":
         print(f"\nEvaluating {ckpt_name}...")
 
         model      = combined_model().to(device)
-        ckpt_path  = os.path.join(CHECKPOINT_ROOT, ckpt_name)
+        ckpt_path  = os.path.join(cfg.CHECKPOINT_ROOT, ckpt_name)
         checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['model_state_dict'])
 
