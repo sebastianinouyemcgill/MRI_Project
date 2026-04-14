@@ -6,6 +6,7 @@ class Config:
         self.DATA_ROOT = os.path.join(self.LOCAL_ROOT, "data/processed/Processed Post")
         self.SPLIT_ROOT = os.path.join(self.LOCAL_ROOT, "splits")
         self.JSON_ROOT = os.path.join(self.LOCAL_ROOT, "data/json")
+        self.COLAB_ROOT = "/content/MRI_Data"
 
         self.SEQ_LEN = 3
         self.GROWTH_THRESHOLD = 0.2
