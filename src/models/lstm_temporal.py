@@ -12,6 +12,7 @@ Usage:
     y_pred, hidden = lstm(features)
 """
 
+'''
 from src.utils.config import cfg
 import torch
 import torch.nn as nn
@@ -67,3 +68,78 @@ if __name__ == "__main__":
 
     print("Input shape:", dummy_input.shape) # should be (BATCH_SIZE, SEQ_LEN, FEATURE_DIM + 1)
     print("Output shape:", logits.shape) # should be (BATCH_SIZE, 1)
+'''
+
+"""
+Input:
+    features: torch.Tensor of shape (B, T, FEATURE_DIM + 1)  # features from CNN for each timepoint (w/ days_elapsed)
+    hidden: optional hidden state tuple (h_0, c_0)
+
+Output:
+    y_pred: torch.Tensor of shape (B, 1)  # predicted progression probability
+    hidden: optional hidden state tuple
+
+Usage:
+    lstm = LSTMTemporal()
+    y_pred, hidden = lstm(features)
+"""
+
+from src.utils.config import cfg
+import torch
+import torch.nn as nn
+
+class LSTMTemporal(nn.Module):
+    def __init__(
+        self,
+        hidden_dim=256,   # increased from 128
+        num_layers=2,     # increased from 1
+        dropout=0.3       # increased from 0.0
+    ):
+        super(LSTMTemporal, self).__init__()
+
+        self.feature_dim = cfg.FEATURE_DIM + 1  # CNN features + time delta
+        self.hidden_dim  = hidden_dim
+        self.num_layers  = num_layers
+
+        self.lstm = nn.LSTM(
+            input_size=self.feature_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0.0
+        )
+
+        self.dropout = nn.Dropout(dropout)  # applied before classifier
+
+        # final classifier
+        self.fc = nn.Linear(hidden_dim, 1)
+
+    def forward(self, features, hidden=None):
+        """
+        features: (B, T, FEATURE_DIM + 1)
+        hidden: optional (h_0, c_0)
+
+        Returns:
+            y_pred: (B, 1)
+            hidden: (h_n, c_n)
+        """
+
+        # lstm_out: (B, T, hidden_dim)
+        lstm_out, hidden = self.lstm(features, hidden)
+
+        # use last timestep
+        last_out = lstm_out[:, -1, :]    # (B, hidden_dim)
+        last_out = self.dropout(last_out) # dropout before classifier
+
+        logits = self.fc(last_out)        # (B, 1)
+
+        return logits, hidden  # return logits (better for BCEWithLogitsLoss)
+
+if __name__ == "__main__":
+    model = LSTMTemporal()
+    dummy_input = torch.randn(cfg.BATCH_SIZE, cfg.SEQ_LEN, cfg.FEATURE_DIM + 1)  # +1 for days_elapsed
+    logits, hidden = model(dummy_input)
+
+    print("Input shape:", dummy_input.shape)  # should be (BATCH_SIZE, SEQ_LEN, FEATURE_DIM + 1)
+    print("Output shape:", logits.shape)       # should be (BATCH_SIZE, 1)
+
